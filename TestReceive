@@ -1,0 +1,43 @@
+package Job;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+
+import java.sql.ResultSet;
+
+import org.junit.Test;
+
+import Db.DbCenter;
+import Db.DbInit;
+import basetest.Basecase;
+import basetest.GetJobCommand;
+import dao.SSHDao;
+
+//10天自动确认收货
+public class TestReceive extends Basecase {
+	GetJobCommand GetJobCommand = new GetJobCommand();
+	private String Orderid = null;
+
+	// 将10天前确认收货的订单改成确认收货
+	@Test
+	public void test_one() throws Exception {
+		Orderid = DbCenter.executeQuerycol("select * from gdmm_order where status = 11 order by id desc limit 1", "id");
+
+		String shipping_time = getDate(-10, 1);
+		// 将订单的发货时间改成10天前
+		String sql = "update gdmm_order set  shipping_time = " + shipping_time + " where id = " + Orderid + "";
+		DbInit.deleDB(sql);
+		SSHDao.exeCommand(GetJobCommand.JobCommand("receive"));
+
+		ResultSet res = DbCenter.getRecordValue("gdmm_order", "id  = " + Orderid + "");
+		if (res.next()) {
+			assertEquals("gdmm_order表status字段有误：", "30", res.getString("status"));
+			String time = GetTimeStamp();
+			boolean bool = Istimedifference(time, res.getString("receive_goods_time"), 200);
+			assertTrue("gdmm_medal_flow表receive_goods_time插入有误：", bool);
+
+		}
+
+	}
+
+}
